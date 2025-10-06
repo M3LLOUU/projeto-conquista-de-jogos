@@ -64,7 +64,7 @@ async function adicionarJogo() {
 
     const plataforma = await input({message: "📝 Digite a plataforma (PC / XBOX / PS5):"});
 
-    if (plataforma !== str1, str2, str3, str4, str5, str6 ) {
+    if (plataforma != "PC" && plataforma != "XBOX" && plataforma != "PS5") {
         mostrarMensagem("❌ Plataforma inválida. Tente novamente.");
         return;
     }
