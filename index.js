@@ -59,7 +59,6 @@ function gerarBarraProgresso(porcentagem) {
 
     return `[${barraPreenchida}${barraVazia}]`;
 }
-// ===================================
 
 
 async function mostrarMenu () {
@@ -70,6 +69,7 @@ async function mostrarMenu () {
         {name: "📝 Adicionar conquista.", value: "conquista"},
         {name: "📝 Detalhes por jogo / Estatísticas.", value: "visualizar"},
         {name: "🏆 Ranking de Jogos.", value: "ranking"},
+        {name: "🏅 Ranking de Dificuldade (D/M/F).", value: "ranking_dificuldade"},
         {name: "📄 Exportar Relatório PDF.", value: "exportar_pdf"},
         {name: "❌ Sair", value: "sair"}
         ]
@@ -90,6 +90,9 @@ async function executarEscolha(opcao){
             break;
         case "ranking":
             await gerarRanking();
+            break;
+        case "ranking_dificuldade":
+            await gerarRankingDificuldade();
             break;
         case "exportar_pdf":
             await exportarPDF();
@@ -513,7 +516,7 @@ async function exportarPDF() {
     htmlContent += `</body></html>`;
 
     // 2. GERAÇÃO DO PDF
-    const options = { format: 'A4', args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--no-zygote'],};
+    const options = { format: 'A4', args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--no-zygote', '--single-process'],};
     const file = { content: htmlContent };
 
     try {
@@ -570,6 +573,53 @@ function agruparConquistasPorJogo(conquistasArray) {
     });
 
     return relatorio;
+}
+
+
+const PRIORIDADE_DIFICULDADE = {
+    "dificil": 3,
+    "media": 2,
+    "facil": 1
+};
+
+async function gerarRankingDificuldade() {
+    limparTela();
+    mostrarMensagem("🏅 RANKING DE CONQUISTAS POR DIFICULDADE 🏅");
+
+    // 1. FILTRAR E COLETAR APENAS AS CONQUISTAS VÁLIDAS
+    // Filtra para incluir apenas entradas que são conquistas reais (têm valueTitulo)
+    const todasConquistas = conquistas.filter(c => c.valueTitulo);
+
+    if (todasConquistas.length === 0) {
+        mostrarMensagem("⚠️ Nenhuma conquista cadastrada para gerar o ranking.");
+        return;
+    }
+
+    // 2. ORDENAÇÃO POR DIFICULDADE
+    const conquistasOrdenadas = todasConquistas.sort((a, b) => {
+        // Pega o valor de prioridade na tabela (o toLowerCase é importante)
+        const prioridadeA = PRIORIDADE_DIFICULDADE[a.valueDificuldade.toLowerCase()] || 0;
+        const prioridadeB = PRIORIDADE_DIFICULDADE[b.valueDificuldade.toLowerCase()] || 0;
+
+        // Ordena em ordem decrescente (DIFÍCIL > MÉDIA > FÁCIL)
+        return prioridadeB - prioridadeA;
+    });
+
+    // 3. EXIBIÇÃO DO RANKING
+    let mensagemRanking = "";
+    
+    conquistasOrdenadas.forEach((c, index) => {
+        const status = c.valueDesbloqueado ? "✔️ DESBLOQUEADA" : "❌ BLOQUEADA";
+        
+        mensagemRanking += `\n--- #${index + 1} ---\n`;
+        mensagemRanking += `Título: ${c.valueTitulo}\n`;
+        mensagemRanking += `Jogo/Plataforma: ${c.valueJogo} (${c.valorPlataforma})\n`;
+        mensagemRanking += `Dificuldade: ${c.valueDificuldade.toUpperCase()}\n`;
+        mensagemRanking += `Status: ${status}\n`;
+        mensagemRanking += `Pontos: ${c.valuePontos} Pts\n`;
+    });
+
+    mostrarMensagem(mensagemRanking);
 }
 
 iniciar();
