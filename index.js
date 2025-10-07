@@ -1,6 +1,7 @@
-const { input, select, checkbox } = require('@inquirer/prompts');
+// Bibliotecas Usadas
+const { input, select} = require('@inquirer/prompts');
 const {randomUUID} = require ('node:crypto');
-
+const fs = require ('fs');
 
 console.log("=== CONQUISTA DE JOGOS === ");
 
@@ -8,6 +9,25 @@ const minPontos = 10;
 const maxPontos = 100;
 
 let conquistas = [];
+
+async function salvarConquistas() {
+    try {
+        await fs.promises.writeFile('conquistas.json', JSON.stringify(conquistas, null, 2));
+        console.log('✔️ Metas salvas com sucesso em conquistas.json');
+    } catch (error) {
+        console.error('❌ Erro ao salvar metas:', error.message);
+    }
+}
+
+async function carregarConquistas() {
+    try {
+        const dados = await fs.promises.readFile('conquistas.json', 'utf-8');
+        conquistas = JSON.parse(dados);
+        console.log('✔️ Jogos carregados com sucesso de jogos.json');
+    } catch (error) {
+        console.error('❌ Erro ao carregar jogos:', error.message);
+    }
+}
 
 // === FUNÇÕES DE UTILIDADE GERAL ===
 function limparTela(){
@@ -99,6 +119,7 @@ async function adicionarJogo() {
     // Usando a variável plataformaUpper e salvando maxConquistas
     conquistas.push({id: randomUUID(), valueJogo: jogo, valorPlataforma: plataformaUpper, maxConquistas: maxConquistas});
     mostrarMensagem("✔️ Jogo adicionado com sucesso!");
+    await salvarConquistas();
 }
 
 async function adicionarConquistas() {
@@ -186,11 +207,13 @@ async function adicionarConquistas() {
         valuePontos: pontos
     });
     mostrarMensagem("✔️ Conquista adicionada com sucesso!");
+    await salvarConquistas();
 }
 
-async function inciar(){
+async function iniciar(){
     limparTela();
     mostrarMensagem("=== SISTEMA DE CONQUISTA DE JOGOS ===")
+    await carregarConquistas();
 
     while (true) {
     const opcao = await mostrarMenu();
@@ -200,9 +223,10 @@ async function inciar(){
         limparTela();
         mostrarMensagem("Até mais! 👋");
         break;
-        }
-    await executarEscolha(opcao);
     }
+    await executarEscolha(opcao);
+    
+ }
 }
 
 async function visualizarConquistasPorJogo() {
@@ -330,4 +354,4 @@ async function visualizarConquistasPorJogo() {
     mostrarMensagem(mensagem);
 }
 
-inciar();
+iniciar();
