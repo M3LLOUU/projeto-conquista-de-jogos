@@ -5,8 +5,6 @@ const fs = require ('fs').promises;
 
 console.log("=== CONQUISTA DE JOGOS === ");
 
-const desbloqueada = true;
-
 const minPontos = 10;
 const maxPontos = 100;
 
@@ -62,8 +60,9 @@ async function adicionarJogo() {
     // erro no retorno da const plataforma 
 
     const plataforma = await input({message: "📝 Digite a plataforma (PC / XBOX / PS5):"});
+    const plataformaUpper = plataforma.toUpperCase().trim(); // Converte para maiúsculas e remove espaços
 
-    if (plataforma != "PC" && plataforma != "XBOX" && plataforma != "PS5") {
+    if (plataformaUpper != "PC" && plataformaUpper != "XBOX" && plataformaUpper != "PS5") {
      mostrarMensagem("❌ Plataforma inválida. Tente novamente.");
     return;
     }
@@ -74,37 +73,90 @@ async function adicionarJogo() {
     }
 
 async function adicionarConquistas() {
+    // 1. EXTRAIR JOGOS ÚNICOS PARA SELEÇÃO
+    const jogoUnico = new Map(); 
+
+    // Itera sobre o array e coleta todas as entradas que parecem ser um registro de jogo.
+    conquistas.forEach(c => {
+        // Usa as chaves que você definiu: valueJogo e valorPlataforma
+        if (c.valueJogo && c.valorPlataforma) {
+            // Cria uma chave única (ex: "ELDEN RING-PS5") para evitar duplicatas
+            const key = `${c.valueJogo.toUpperCase().trim()}-${c.valorPlataforma.toUpperCase().trim()}`;
+            if (!jogoUnico.has(key)) {
+                jogoUnico.set(key, { jogo: c.valueJogo, plataforma: c.valorPlataforma });
+            }
+        }
+    });
+
+    // 2. VERIFICAÇÃO: Se não houver jogos cadastrados
+    if (jogoUnico.size === 0) {
+        mostrarMensagem("❌ Nenhum jogo cadastrado. Por favor, adicione um jogo primeiro (Opção 'Adicionar jogo novo').");
+        return;
+    }
+
+    // 3. PREPARAÇÃO E EXIBIÇÃO DO MENU DE SELEÇÃO
+    const choices = Array.from(jogoUnico.values()).map(item => ({
+        // Nome a ser exibido no menu (Ex: "Elden Ring (PS5)")
+        name: `${item.jogo} (${item.plataforma})`,
+        // Valor real a ser retornado (Objeto com jogo e plataforma)
+        value: { jogo: item.jogo, plataforma: item.plataforma }
+    }));
+
+    const selecao = await select({
+        message: "🎮 Selecione o JOGO para esta conquista:",
+        choices: choices
+    });
+
+    const jogoSelecionado = selecao.jogo;
+    const plataformaSelecionada = selecao.plataforma;
+
+    // --- 4. PROSSEGUE COM OS DETALHES DA CONQUISTA ---
+
     const titulo = await input ({message: "Titulo da conquista:"});
     if (titulo.length === 0) {
-     mostrarMensagem("❌ Titulo inválido. Tente novamente.");
-    return;
+        mostrarMensagem("❌ Título inválido. Tente novamente.");
+        return;
     }
+    
     const descricao = await input ({message: "Descrição da conquista:"});
+    // erro de digitação na mensagem de erro
     if (descricao.length === 0) {
-     mostrarMensagem("❌ Titulo inválido. Tente novamente.");
-    return;
+        mostrarMensagem("❌ Descrição inválida. Tente novamente.");
+        return;
     }
-    const dificuldade = await input ({message: "Dificuldade (fácil, média, dificil):"});
-    if (dificuldade != "facil" && dificuldade != "media" && dificuldade != "dificil") {
-        mostrarMensagem("❌ Titulo inválido. Tente novamente.");
-    return;
-    }
-    const desbloqueada = ({message:"Desbloqueada!"});
-    const dataDesbloqueio = console.log ("Data do desbloqueio:", new Date());
 
-    /* 
-        math.floor: Arredonda para baixo para manter um número inteiro.
-        math.random retorna número aleatório.
-    */
+    const dificuldade = await input ({message: "Dificuldade (fácil, média, difícil):"});
+    // tratamento de caso (case-insensitive)
+    const dif = dificuldade.toLowerCase().trim();
+    if (dif != "facil" && dif != "media" && dif != "dificil") {
+        // mensagem de erro mais clara
+        mostrarMensagem("❌ Dificuldade inválida. Use fácil, média ou difícil.");
+        return;
+    }
+
+    // Atribui um booleano e o objeto Date corretamente
+    const isDesbloqueada = true; 
+    const dataDesbloqueio = new Date().toISOString(); 
+    
+    // Geração dos pontos
     const pontos = Math.floor(Math.random() * (maxPontos - minPontos + 1)) + minPontos;
-    /*
-        const pontos precisa do calculo matematico para poder retornar o número aleatório,
-        caso não seja feito ele apenas retorna indefinido
-    */
-    console.log(pontos, "Pts");
+    console.log(`🎉 Pontos Gerados: ${pontos} Pts`);
 
-    conquistas.push({id: randomUUID(), valueTitulo: titulo, valueDescricao: descricao, valueDificuldade: dificuldade, valueDesbloqueado: desbloqueada, valueDataDesbloqueio: dataDesbloqueio, valuePontos: pontos});
-    mostrarMensagem("✔️  conquista adicionado com sucesso!");
+    // 5. ARMAZENAMENTO DA CONQUISTA
+    conquistas.push({
+        id: randomUUID(), 
+        // Inclui o jogo e a plataforma selecionados para poder filtrar depois
+        valueJogo: jogoSelecionado,
+        valorPlataforma: plataformaSelecionada,
+
+        valueTitulo: titulo, 
+        valueDescricao: descricao, 
+        valueDificuldade: dif, 
+        valueDesbloqueado: isDesbloqueada, 
+        valueDataDesbloqueio: dataDesbloqueio, 
+        valuePontos: pontos
+    });
+    mostrarMensagem("✔️ Conquista adicionada com sucesso!");
 }
 
 async function inciar(){
@@ -125,52 +177,90 @@ async function inciar(){
 }
 
 async function visualizarConquistasPorJogo() {
-     // 1. Pede o nome do jogo ao usuário
-     const nomeJogo = await input({ message: "Digite o jogo que deseja visualizar:" });
+    // 1. APENAS JOGOS CADASTRADOS
+    const uniqueGames = new Map(); 
 
-    if (!nomeJogo) {
-        mostrarMensagem("❌ Nome do jogo não pode ser vazio.");
+    // Itera para encontrar todos os jogos únicos com suas plataformas
+    conquistas.forEach(c => {
+        if (c.valueJogo && c.valorPlataforma) {
+            const key = `${c.valueJogo.toUpperCase().trim()}-${c.valorPlataforma.toUpperCase().trim()}`;
+            if (!uniqueGames.has(key)) {
+                uniqueGames.set(key, { jogo: c.valueJogo, plataforma: c.valorPlataforma });
+            }
+        }
+    });
+
+    // 2. VERIFICAÇÃO DE JOGOS CADASTRADOS
+    if (uniqueGames.size === 0) {
+        mostrarMensagem("❌ Nenhum jogo cadastrado para visualizar. Por favor, adicione um jogo primeiro.");
         return;
     }
 
-    // 2. Filtra o array de conquistas
-    // (Assumindo que 'conquistas' é o seu array global de todas as conquistas)
-    const conquistasFiltradas = conquistas.filter(conquista => 
-    // Filtra por jogos que têm o nome exato (idealmente, use toUpperCase/toLowerCase para ser flexível)
-    conquista.valueJogo.toLowerCase() === nomeJogo.toLowerCase()
-    );
+    // 3. PREPARAÇÃO DO MENU DE SELEÇÃO
+    const choices = Array.from(uniqueGames.values()).map(item => ({
+        // Nome a ser exibido no menu (Ex: "Elden Ring (PS5)")
+        name: `${item.jogo} (${item.plataforma})`,
+        // Valor real a ser retornado
+        value: { jogo: item.jogo, plataforma: item.plataforma }
+    }));
 
-    if (conquistasFiltradas.length === 0) {
-        mostrarMensagem(`⚠️ Nenhum jogo encontrado com o nome: ${nomeJogo}.`);
-        return;
-    }
+    // 4. SELEÇÃO DO JOGO
+    const selecao = await select({
+        message: "🔍 Selecione o JOGO para visualizar as conquistas:",
+        choices: choices
+    });
 
-    // Pega os dados gerais (Jogo e Plataforma) da primeira conquista filtrada
-    const jogoInfo = conquistasFiltradas[0];
-    const nomeExibido = jogoInfo.valueJogo;
-    const plataformaExibida = jogoInfo.valorPlataforma;
+    const nomeJogoSelecionado = selecao.jogo;
+    const plataformaSelecionada = selecao.plataforma;
+    
+    // 5. FILTRAGEM DOS DADOS (Não é mais necessário usar toLowerCase() no input)
+    // Filtra todas as entradas que correspondem ao jogo e plataforma selecionados.
+    const conquistasFiltradas = conquistas.filter(conquista => {
+        // Verifica se a propriedade existe para evitar o TypeError
+        if (typeof conquista.valueJogo !== 'string' || typeof conquista.valorPlataforma !== 'string') {
+            return false;
+        }
+        
+        // Filtra pelo nome do jogo E pela plataforma (para diferenciar "God of War (PC)" de "God of War (PS5)")
+        return (
+            conquista.valueJogo === nomeJogoSelecionado && 
+            conquista.valorPlataforma === plataformaSelecionada
+        );
+    });
 
-    let mensagem = `\n✅ Jogo: ${nomeExibido}\n`;
-    mensagem += `🎮 Plataforma: ${plataformaExibida}\n`;
-    mensagem += `Total de Conquistas: ${conquistasFiltradas.length}\n`;
+    // 6. EXIBIÇÃO DOS DETALHES
+    // Como a filtragem já foi feita, este bloco exibe as informações
+
+    let mensagem = `\n✅ Jogo: ${nomeJogoSelecionado}\n`;
+    mensagem += `🎮 Plataforma: ${plataformaSelecionada}\n`;
+    mensagem += `Total de Entradas: ${conquistasFiltradas.length}\n`;
     mensagem += "--- Detalhes das Conquistas ---\n";
 
-    // 4. Itera sobre as conquistas filtradas para listar os detalhes
     conquistasFiltradas.forEach((conquista, index) => {
-    // Formata o status de desbloqueio
-    const status = conquista.desbloqueada ? "✔️ DESBLOQUEADA" : "❌ BLOQUEADA";
- 
-    mensagem += `\n${index + 1}. Título: ${conquista.titulo}\n`;
-    mensagem += `Descrição: ${conquista.descricao || 'N/A'}\n`;
-    mensagem += `Pontos: ${conquista.pontos || 0} Pts\n`;
-    mensagem += `Status: ${status}\n`;
+        // Usa as chaves com prefixo 'value'
+        const isDesbloqueada = conquista.valueDesbloqueado || false;
+        const status = isDesbloqueada ? "✔️ DESBLOQUEADA" : "❌ BLOQUEADA";
+        
+        // Tenta formatar a data, se houver
+        let dataDesbloqueioFormatada = 'N/A';
+        if (isDesbloqueada && conquista.valueDataDesbloqueio) {
+            const data = new Date(conquista.valueDataDesbloqueio);
+            if (!isNaN(data)) {
+                dataDesbloqueioFormatada = data.toLocaleDateString('pt-BR');
+            }
+        }
+        
+        mensagem += `\n${index + 1}. Título: ${conquista.valueTitulo || 'N/A'}\n`;
+        mensagem += `   Descrição: ${conquista.valueDescricao || 'N/A'}\n`;
+        mensagem += `   Dificuldade: ${conquista.valueDificuldade || 'N/A'}\n`;
+        mensagem += `   Pontos: ${conquista.valuePontos || 0} Pts\n`;
+        mensagem += `   Status: ${status}\n`;
 
-    if (conquista.desbloqueada && conquista.dataDesbloqueio) {
-    // Você pode formatar a data como preferir
-    mensagem += ` Data Desbloqueio: ${new Date(conquista.dataDesbloqueio).toLocaleDateString('pt-BR')}\n`;
-    }
-});
-// Exibe a mensagem final com todos os detalhes
-mostrarMensagem(mensagem);
+        if (isDesbloqueada) {
+            mensagem += `   Data Desbloqueio: ${dataDesbloqueioFormatada}\n`;
+        }
+    });
+    
+    mostrarMensagem(mensagem);
 }
 inciar();
