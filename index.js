@@ -1,6 +1,5 @@
 const { input, select, checkbox } = require('@inquirer/prompts');
 const {randomUUID} = require ('node:crypto');
-const fs = require ('fs').promises;
 
 
 console.log("=== CONQUISTA DE JOGOS === ");
@@ -10,6 +9,7 @@ const maxPontos = 100;
 
 let conquistas = [];
 
+// === FUNÇÕES DE UTILIDADE GERAL ===
 function limparTela(){
     console.clear();
 }
@@ -18,13 +18,36 @@ function mostrarMensagem(mensagem) {
     console.log(`\n${mensagem}\n`);
 }
 
+/**
+ * Gera uma barra de progresso visual para o console.
+ * @param {number} porcentagem - O valor percentual (0-100).
+ * @returns {string} - A barra visual.
+ */
+function gerarBarraProgresso(porcentagem) {
+    const tamanhoBarra = 20;
+    
+    // Calcula quantos blocos são preenchidos
+    const blocosPreenchidos = Math.round((porcentagem / 100) * tamanhoBarra);
+    
+    // Calcula quantos blocos são vazios
+    const blocosVazios = tamanhoBarra - blocosPreenchidos;
+
+    // Constrói a barra visual
+    const barraPreenchida = '▓'.repeat(blocosPreenchidos);
+    const barraVazia = '░'.repeat(blocosVazios);
+
+    return `[${barraPreenchida}${barraVazia}]`;
+}
+// ===================================
+
+
 async function mostrarMenu () {
     const opcao = await select({
-        message: "⬇️  Escolha uma opção ⬇️",
+        message: "⬇️ Escolha uma opção ⬇️",
         choices: [
         {name: "📝 Adicionar jogo novo.", value: "novo"},
         {name: "📝 Adicionar conquista.", value: "conquista"},
-        {name: "📝 Detalhes por jogo.", value: "visualizar"},
+        {name: "📝 Detalhes por jogo / Estatísticas.", value: "visualizar"},
         {name: "❌ Sair", value: "sair"}
         ]
     });
@@ -53,24 +76,30 @@ async function adicionarJogo() {
     const jogo = await input({message: "📝 Cadastrar jogo:"});
 
     if (jogo.length === 0) {
-     mostrarMensagem("❌ Jogo inválido. Tente novamente.");
-    return;
+       mostrarMensagem("❌ Jogo inválido. Tente novamente.");
+       return;
     }
 
-    // erro no retorno da const plataforma 
+    const totalMaximo = await input({message: "📝 Total MÁXIMO de conquistas que este jogo terá:"});
+    const maxConquistas = parseInt(totalMaximo, 10); // Converte o input para um número inteiro
+
+    if (isNaN(maxConquistas) || maxConquistas <= 0) {
+       mostrarMensagem("❌ Total máximo inválido. Use um número positivo.");
+       return;
+    }
 
     const plataforma = await input({message: "📝 Digite a plataforma (PC / XBOX / PS5):"});
     const plataformaUpper = plataforma.toUpperCase().trim(); // Converte para maiúsculas e remove espaços
 
     if (plataformaUpper != "PC" && plataformaUpper != "XBOX" && plataformaUpper != "PS5") {
-     mostrarMensagem("❌ Plataforma inválida. Tente novamente.");
-    return;
+       mostrarMensagem("❌ Plataforma inválida. Tente novamente.");
+       return;
     }
 
-    // erro no retorno da const plataforma
-    conquistas.push({id: randomUUID(), valueJogo: jogo, valorPlataforma: plataforma});
-    mostrarMensagem("✔️  Jogo adicionado com sucesso!");
-    }
+    // Usando a variável plataformaUpper e salvando maxConquistas
+    conquistas.push({id: randomUUID(), valueJogo: jogo, valorPlataforma: plataformaUpper, maxConquistas: maxConquistas});
+    mostrarMensagem("✔️ Jogo adicionado com sucesso!");
+}
 
 async function adicionarConquistas() {
     // 1. EXTRAIR JOGOS ÚNICOS PARA SELEÇÃO
@@ -213,28 +242,65 @@ async function visualizarConquistasPorJogo() {
     const nomeJogoSelecionado = selecao.jogo;
     const plataformaSelecionada = selecao.plataforma;
     
-    // 5. FILTRAGEM DOS DADOS (Não é mais necessário usar toLowerCase() no input)
-    // Filtra todas as entradas que correspondem ao jogo e plataforma selecionados.
+    // 5. FILTRAGEM DOS DADOS (Conquistas reais)
     const conquistasFiltradas = conquistas.filter(conquista => {
         // Verifica se a propriedade existe para evitar o TypeError
         if (typeof conquista.valueJogo !== 'string' || typeof conquista.valorPlataforma !== 'string') {
             return false;
         }
-        
-        // Filtra pelo nome do jogo E pela plataforma (para diferenciar "God of War (PC)" de "God of War (PS5)")
-        return (
+
+        const Jogo_E_Plataforma = (
             conquista.valueJogo === nomeJogoSelecionado && 
             conquista.valorPlataforma === plataformaSelecionada
         );
+        
+        // Verifica se possui Título (é uma conquista, e não apenas o registro do jogo)
+        const ConquistaAtual = !!conquista.valueTitulo; 
+        
+        // Retorna APENAS se for uma conquista E o jogo/plataforma for o selecionado
+        return Jogo_E_Plataforma && ConquistaAtual;
+    }); 
+    
+    // 6. CÁLCULO DAS ESTATÍSTICAS (CORRIGIDO PARA USAR O TOTAL MÁXIMO)
+    const totalConquistasCadastradas = conquistasFiltradas.length;
+    let desbloqueadas = 0;
+
+    conquistasFiltradas.forEach(c => {
+        if (c.valueDesbloqueado) { 
+            desbloqueadas++;
+        }
     });
+    
+    // 🚨 ENCONTRA O TOTAL MÁXIMO DEFINIDO NO CADASTRO DO JOGO
+    const registroJogo = conquistas.find(c => 
+        c.valueJogo === nomeJogoSelecionado && 
+        c.valorPlataforma === plataformaSelecionada &&
+        typeof c.maxConquistas === 'number'
+    );
+    
+    const maxConquistasDoJogo = registroJogo ? registroJogo.maxConquistas : 
+        (totalConquistasCadastradas > 0 ? totalConquistasCadastradas : 1);
+        
+    // Calcula a porcentagem usando o TOTAL MÁXIMO
+    const porcentagem = Math.round((desbloqueadas / maxConquistasDoJogo) * 100);
 
-    // 6. EXIBIÇÃO DOS DETALHES
-    // Como a filtragem já foi feita, este bloco exibe as informações
+    const barraProgresso = gerarBarraProgresso(porcentagem);
 
+    // 7. EXIBIÇÃO DOS DETALHES
     let mensagem = `\n✅ Jogo: ${nomeJogoSelecionado}\n`;
     mensagem += `🎮 Plataforma: ${plataformaSelecionada}\n`;
-    mensagem += `Total de Entradas: ${conquistasFiltradas.length}\n`;
+    mensagem += `\n📊 Estatísticas de Conclusão:\n`;
+    
+    // Usa as variáveis locais corrigidas:
+    mensagem += `   Conquistas Desbloqueadas: ${desbloqueadas}/${maxConquistasDoJogo}\n`; // Exibe a razão
+    mensagem += `   Progresso: ${barraProgresso} ${porcentagem}%\n`; 
+    mensagem += "----------------------------------------\n";
     mensagem += "--- Detalhes das Conquistas ---\n";
+
+    // Usa o total correto para a verificação
+    if (totalConquistasCadastradas === 0) {
+        mensagem += "\nNenhuma conquista cadastrada para este jogo/plataforma.";
+    }
 
     conquistasFiltradas.forEach((conquista, index) => {
         // Usa as chaves com prefixo 'value'
@@ -260,7 +326,8 @@ async function visualizarConquistasPorJogo() {
             mensagem += `   Data Desbloqueio: ${dataDesbloqueioFormatada}\n`;
         }
     });
-    
+
     mostrarMensagem(mensagem);
 }
+
 inciar();
