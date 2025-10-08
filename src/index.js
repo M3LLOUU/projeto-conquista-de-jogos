@@ -23,12 +23,12 @@ const NIVEIS_MESTRE = [
     { nome: "Mestre Supremo", pontos: 10000 }
 ];
 
-// FUNÇÕES DE ARMAZENAMENTO EM ARQUIVO JSON 
+// FUNCOES DE ARMAZENAMENTO EM ARQUIVO JSON 
 async function salvarConquistas() {
     try {
         const dadosParaSalvar = {
             conquistas: conquistas,
-            pontuacaoMestre: pontuacaoMestre // Salva a pontuação
+            pontuacaoMestre: pontuacaoMestre // Salva a pontuacao
         };
         await fs.promises.writeFile('conquistas.json', JSON.stringify(dadosParaSalvar, null, 2));
         console.log('✔️ Metas e pontuação salvas com sucesso.');
@@ -37,7 +37,7 @@ async function salvarConquistas() {
     }
 }
 
- // Carrega conquistas e pontuação do arquivo JSON.
+ // Carrega conquistas e pontuacaoo do arquivo JSON.
 async function carregarConquistas() {
     try {
         const dados = await fs.promises.readFile('conquistas.json', 'utf-8');
@@ -49,7 +49,7 @@ async function carregarConquistas() {
         }
         const dadosCarregados = JSON.parse(dados);
         
-        // Carrega os dados e a pontuação mestre
+        // Carrega os dados e a pontuacaoo mestre
         conquistas = dadosCarregados.conquistas || [];
         pontuacaoMestre = dadosCarregados.pontuacaoMestre || 0;
         
