@@ -12,30 +12,64 @@ const maxPontos = 100;
 
 let conquistas = [];
 
+let pontuacaoMestre = 0; // PONTUAÇÃO TOTAL DO JOGADOR
+
+// Definição dos níveis
+const NIVEIS_MESTRE = [
+    { nome: "Novato", pontos: 0 },
+    { nome: "Aventureiro", pontos: 500 },
+    { nome: "Veterano", pontos: 2000 },
+    { nome: "Lenda", pontos: 5000 },
+    { nome: "Mestre Supremo", pontos: 10000 }
+];
+
+// FUNÇÕES DE ARMAZENAMENTO EM ARQUIVO JSON 
 async function salvarConquistas() {
     try {
-        await fs.promises.writeFile('conquistas.json', JSON.stringify(conquistas, null, 2));
-        console.log('✔️ Metas salvas com sucesso em conquistas.json');
+        const dadosParaSalvar = {
+            conquistas: conquistas,
+            pontuacaoMestre: pontuacaoMestre // Salva a pontuação
+        };
+        await fs.promises.writeFile('conquistas.json', JSON.stringify(dadosParaSalvar, null, 2));
+        console.log('✔️ Metas e pontuação salvas com sucesso.');
     } catch (error) {
         console.error('❌ Erro ao salvar metas:', error.message);
     }
 }
 
+ // Carrega conquistas e pontuação do arquivo JSON.
 async function carregarConquistas() {
     try {
         const dados = await fs.promises.readFile('conquistas.json', 'utf-8');
-        conquistas = JSON.parse(dados);
-        console.log('✔️ Jogos carregados com sucesso de jogos.json');
+        
+        if (dados.trim().length === 0) {
+            conquistas = []; 
+            pontuacaoMestre = 0; // Inicializa zero
+            return;
+        }
+        const dadosCarregados = JSON.parse(dados);
+        
+        // Carrega os dados e a pontuação mestre
+        conquistas = dadosCarregados.conquistas || [];
+        pontuacaoMestre = dadosCarregados.pontuacaoMestre || 0;
+        
+        console.log('✔️ Jogos carregados com sucesso.');
     } catch (error) {
-        console.error('❌ Erro ao carregar jogos:', error.message);
+        if (error.code !== 'ENOENT') { 
+             console.error('❌ Erro ao carregar jogos:', error.message);
+        } else {
+             conquistas = []; 
+             pontuacaoMestre = 0; // Garante que zera se o arquivo não existir
+        }
     }
 }
 
-// === FUNÇÕES DE UTILIDADE GERAL ===
+// FUNÇÕES DE UTILIDADE GERAL 
 function limparTela(){
     console.clear();
 }
 
+// Exibe mensagem padronizada no console.
 function mostrarMensagem(mensagem) {
     console.log(`\n${mensagem}\n`);
 }
@@ -61,6 +95,22 @@ function gerarBarraProgresso(porcentagem) {
     return `[${barraPreenchida}${barraVazia}]`;
 }
 
+// Determina o status atual do mestre com base na pontuação.
+function StatusMestre(pontuacao) {
+    let nivelAtual = NIVEIS_MESTRE[0];
+
+    for (const nivel of NIVEIS_MESTRE) {
+        if (pontuacao >= nivel.pontos) {
+            nivelAtual = nivel;
+        } else {
+            // Se a pontuação for menor que o próximo nível, para o loop
+            break; 
+        }
+    }
+    return nivelAtual;
+}
+
+// Agrupa conquistas por jogo e plataforma, calculando estatísticas.
 function agruparConquistasPorJogo(conquistasArray) {
     const relatorio = new Map();
 
@@ -107,7 +157,14 @@ function agruparConquistasPorJogo(conquistasArray) {
     return relatorio;
 }
 
+// Exibe o menu principal e retorna a escolha do usuário.
 async function mostrarMenu () {
+    const statusAtual = StatusMestre(pontuacaoMestre);
+    console.log(`\n========================================`);
+    console.log(`⭐ Status: ${statusAtual.nome}`);
+    console.log(`💰 Pontuação Total: ${pontuacaoMestre} Pts`);
+    console.log(`========================================`);
+
     const opcao = await select({
         message: "⬇️ Escolha uma opção ⬇️",
         choices: [
@@ -123,6 +180,7 @@ async function mostrarMenu () {
     return opcao;
 }
 
+// Executa a função correspondente à escolha do usuário.
 async function executarEscolha(opcao){
     switch (opcao) {
         case "novo":
@@ -150,6 +208,7 @@ async function executarEscolha(opcao){
     }
 }
 
+// Adiciona um novo jogo ao sistema. E o máximo de conquistas.
 async function adicionarJogo() {
     const jogo = await input({message: "📝 Cadastrar jogo:"});
 
@@ -180,6 +239,7 @@ async function adicionarJogo() {
     await salvarConquistas();
 }
 
+// Adiciona uma nova conquista vinculada a um jogo existente. E gera pontos aleatórios.
 async function adicionarConquistas() {
     // 1. EXTRAIR JOGOS ÚNICOS PARA SELEÇÃO
     const jogoUnico = new Map(); 
@@ -250,13 +310,14 @@ async function adicionarConquistas() {
     const pontos = Math.floor(Math.random() * (maxPontos - minPontos + 1)) + minPontos;
     console.log(`🎉 Pontos Gerados: ${pontos} Pts`);
 
+    pontuacaoMestre += pontos
+
     // 5. ARMAZENAMENTO DA CONQUISTA
     conquistas.push({
         id: randomUUID(), 
         // Inclui o jogo e a plataforma selecionados para poder filtrar depois
         valueJogo: jogoSelecionado,
         valorPlataforma: plataformaSelecionada,
-
         valueTitulo: titulo, 
         valueDescricao: descricao, 
         valueDificuldade: dif, 
@@ -268,6 +329,7 @@ async function adicionarConquistas() {
     await salvarConquistas();
 }
 
+// Função principal que inicia o sistema.
 async function iniciar(){
     limparTela();
     mostrarMensagem("=== SISTEMA DE CONQUISTA DE JOGOS ===")
@@ -287,6 +349,7 @@ async function iniciar(){
  }
 }
 
+// Visualiza conquistas por jogo, com estatísticas detalhadas.
 async function visualizarConquistasPorJogo() {
     // 1. APENAS JOGOS CADASTRADOS
     const uniqueGames = new Map(); 
@@ -412,6 +475,7 @@ async function visualizarConquistasPorJogo() {
     mostrarMensagem(mensagem);
 }
 
+// Gera um ranking dos jogos mais completados.
 async function gerarRanking() {
     limparTela();
     mostrarMensagem("🏆 RANKING DE JOGOS MAIS COMPLETADOS 🏆");
@@ -495,6 +559,7 @@ async function gerarRanking() {
     mostrarMensagem(mensagemRanking);
 }
 
+// Exporta um relatório detalhado em PDF usando PDFKit.
 async function exportarPDF() {
     limparTela();
     mostrarMensagem("📄 Gerando relatório PDF com PDFKit... Aguarde um momento.");
@@ -556,12 +621,14 @@ async function exportarPDF() {
     mostrarMensagem(`🎉 PDF gerado com sucesso! Arquivo: ${filename}`);
 }
 
+// Gera um ranking das conquistas por dificuldade (Difícil, Média, Fácil).
 const PRIORIDADE_DIFICULDADE = {
     "dificil": 3,
     "media": 2,
     "facil": 1
 };
 
+// Gera um ranking das conquistas por dificuldade (Difícil, Média, Fácil).
 async function gerarRankingDificuldade() {
     limparTela();
     mostrarMensagem("🏅 RANKING DE CONQUISTAS POR DIFICULDADE 🏅");
