@@ -2,7 +2,8 @@
 const { input, select} = require('@inquirer/prompts');
 const {randomUUID} = require ('node:crypto');
 const fs = require ('fs');
-const pdf = require('html-pdf-node'); 
+const PDFDocument = require('pdfkit');
+ 
 
 console.log("=== CONQUISTA DE JOGOS === ");
 
@@ -60,6 +61,51 @@ function gerarBarraProgresso(porcentagem) {
     return `[${barraPreenchida}${barraVazia}]`;
 }
 
+function agruparConquistasPorJogo(conquistasArray) {
+    const relatorio = new Map();
+
+    conquistasArray.forEach(c => {
+        // Ignora entradas que não são conquistas reais (sem valueTitulo)
+        if (!c.valueJogo || !c.valorPlataforma || !c.valueTitulo) {
+            return;
+        }
+
+        const key = `${c.valueJogo}|${c.valorPlataforma}`;
+
+        if (!relatorio.has(key)) {
+            // Busca o registro do jogo para pegar o total máximo
+            const registroJogo = conquistasArray.find(r => 
+                r.valueJogo === c.valueJogo && 
+                r.valorPlataforma === c.valorPlataforma &&
+                typeof r.maxConquistas === 'number'
+            );
+            
+            const maxConquistas = registroJogo ? registroJogo.maxConquistas : 1;
+            
+            relatorio.set(key, {
+                jogo: c.valueJogo,
+                plataforma: c.valorPlataforma,
+                maxConquistas: maxConquistas,
+                desbloqueadas: 0,
+                conquistas: [],
+                porcentagem: 0
+            });
+        }
+
+        const data = relatorio.get(key);
+
+        data.conquistas.push(c);
+
+        if (c.valueDesbloqueado) {
+            data.desbloqueadas++;
+        }
+        
+        // Calcula a porcentagem usando o total MÁXIMO
+        data.porcentagem = Math.round((data.desbloqueadas / data.maxConquistas) * 100);
+    });
+
+    return relatorio;
+}
 
 async function mostrarMenu () {
     const opcao = await select({
@@ -451,130 +497,64 @@ async function gerarRanking() {
 
 async function exportarPDF() {
     limparTela();
-    mostrarMensagem("📄 Gerando relatório PDF... Aguarde um momento.");
+    mostrarMensagem("📄 Gerando relatório PDF com PDFKit... Aguarde um momento.");
 
     if (conquistas.length === 0) {
         mostrarMensagem("❌ Não há dados salvos para gerar o relatório.");
         return;
     }
 
-    // 1. MONTAGEM DO CONTEÚDO HTML
-    let htmlContent = `
-        <html>
-        <head>
-            <title>Relatório de Conquistas</title>
-            <style>
-                body { font-family: sans-serif; margin: 20px; }
-                h1 { color: #5c6bc0; border-bottom: 2px solid #5c6bc0; padding-bottom: 5px; }
-                .game-section { margin-bottom: 30px; border: 1px solid #ccc; padding: 15px; border-radius: 5px; }
-                .game-header { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; color: #333; }
-                .achievement { border-left: 3px solid #7c4dff; padding-left: 10px; margin-top: 5px; font-size: 0.9em; }
-                .status-desbloqueada { color: green; font-weight: bold; }
-                .status-bloqueada { color: red; }
-                .stats { background-color: #f0f4f8; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-            </style>
-        </head>
-        <body>
-            <h1>Relatório Geral de Conquistas (${new Date().toLocaleDateString('pt-BR')})</h1>
-    `;
+    // 1. INICIALIZAÇÃO E STREAM
+    const doc = new PDFDocument({ margin: 50 });
+    const filename = 'relatorio_conquistas.pdf';
+    doc.pipe(fs.createWriteStream(filename));
 
-    // Reutiliza a lógica de agrupamento de jogos para exibir o relatório de forma organizada
     const relatorioPorJogo = agruparConquistasPorJogo(conquistas);
+
+    // 2. MONTAGEM DO CONTEÚDO
+    doc.fontSize(18).fillColor('#5c6bc0').text('Relatório Geral de Conquistas', { underline: true });
+    doc.fontSize(10).fillColor('black').text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}\n\n`);
 
     for (const [key, data] of relatorioPorJogo.entries()) {
         const { jogo, plataforma, conquistas: listaConquistas, maxConquistas, desbloqueadas, porcentagem } = data;
-
-        const barraProgresso = gerarBarraProgresso(porcentagem).replace(/▓/g, '#').replace(/░/g, '-'); // Caracteres simples para PDF
-
-        htmlContent += `
-            <div class="game-section">
-                <div class="game-header">${jogo} (${plataforma})</div>
-                <div class="stats">
-                    <p>Total Desbloqueadas: ${desbloqueadas} / ${maxConquistas}</p>
-                    <p>Progresso: ${porcentagem}% ${barraProgresso}</p>
-                </div>
-        `;
         
+        // Seção principal do jogo
+        doc.fontSize(14).fillColor('#333333').text(`🎮 ${jogo} (${plataforma})`, { paragraphGap: 5 });
+        
+        // Estatísticas
+        doc.fontSize(10)
+           .text(`Total de Conquistas: ${listaConquistas.length}`)
+           .text(`Progresso: ${desbloqueadas} / ${maxConquistas} (${porcentagem}%)`);
+        
+        doc.moveDown(0.5);
+        doc.fontSize(10).text('--- Detalhes ---', { bold: true });
+
+        // Lista de Conquistas
         listaConquistas.forEach(conquista => {
-            const statusClass = conquista.valueDesbloqueado ? 'status-desbloqueada' : 'status-bloqueada';
+            const statusColor = conquista.valueDesbloqueado ? 'green' : 'red';
+            const statusText = conquista.valueDesbloqueado ? 'DESBLOQUEADA' : 'BLOQUEADA';
             const dataDesbloqueio = conquista.valueDataDesbloqueio 
                 ? new Date(conquista.valueDataDesbloqueio).toLocaleDateString('pt-BR') 
                 : 'Bloqueada';
 
-            htmlContent += `
-                <div class="achievement">
-                    <strong>${conquista.valueTitulo}</strong> (${conquista.valuePontos} Pts, ${conquista.valueDificuldade})<br>
-                    Descrição: ${conquista.valueDescricao}<br>
-                    Status: <span class="${statusClass}">${conquista.valueDesbloqueado ? 'DESBLOQUEADA' : 'BLOQUEADA'}</span> | Data: ${dataDesbloqueio}
-                </div>
-            `;
+            doc.moveDown(0.2);
+            doc.fontSize(10).fillColor('#222').text(`• Título: ${conquista.valueTitulo}`, { indent: 10 });
+            doc.fontSize(9)
+               .text(`   Pts: ${conquista.valuePontos} | Dificuldade: ${conquista.valueDificuldade.toUpperCase()}`)
+               .fillColor(statusColor).text(`   Status: ${statusText}`, { continued: true })
+               .fillColor('black').text(` | Data: ${dataDesbloqueio}`);
         });
 
-        htmlContent += `</div>`;
+        doc.moveDown(1.5); 
     }
 
-    htmlContent += `</body></html>`;
+    // 3. FINALIZAÇÃO
+    doc.end();
+    
+    await new Promise(resolve => doc.on('end', resolve));
 
-    // 2. GERAÇÃO DO PDF
-    const options = { format: 'A4', args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--no-zygote', '--single-process'],};
-    const file = { content: htmlContent };
-
-    try {
-        const pdfBuffer = await pdf.generatePdf(file, options);
-        // Salva o buffer diretamente no arquivo
-        await fs.promises.writeFile('relatorio_conquistas.pdf', pdfBuffer);
-        mostrarMensagem("🎉 PDF gerado com sucesso! Arquivo: relatorio_conquistas.pdf");
-    } catch (Erro) {
-        mostrarMensagem(`❌ Erro ao gerar PDF: ${Erro.message}`);
-        console.error(Erro);
-    }
+    mostrarMensagem(`🎉 PDF gerado com sucesso! Arquivo: ${filename}`);
 }
-
-// Adicione esta função auxiliar após gerarBarraProgresso e antes de mostrarMenu:
-function agruparConquistasPorJogo(conquistasArray) {
-    const relatorio = new Map();
-
-    conquistasArray.forEach(c => {
-        if (!c.valueJogo || !c.valorPlataforma || !c.valueTitulo) {
-            // Ignora registros de jogo incompletos ou malformados
-            return;
-        }
-
-        const key = `${c.valueJogo}|${c.valorPlataforma}`;
-
-        if (!relatorio.has(key)) {
-            const registroJogo = conquistasArray.find(r => 
-                r.valueJogo === c.valueJogo && 
-                r.valorPlataforma === c.valorPlataforma &&
-                typeof r.maxConquistas === 'number'
-            );
-            
-            const maxConquistas = registroJogo ? registroJogo.maxConquistas : 1;
-            
-            relatorio.set(key, {
-                jogo: c.valueJogo,
-                plataforma: c.valorPlataforma,
-                maxConquistas: maxConquistas,
-                desbloqueadas: 0,
-                conquistas: [],
-                porcentagem: 0
-            });
-        }
-
-        const data = relatorio.get(key);
-
-        data.conquistas.push(c);
-
-        if (c.valueDesbloqueado) {
-            data.desbloqueadas++;
-        }
-        
-        data.porcentagem = Math.round((data.desbloqueadas / data.maxConquistas) * 100);
-    });
-
-    return relatorio;
-}
-
 
 const PRIORIDADE_DIFICULDADE = {
     "dificil": 3,

@@ -4,5 +4,33 @@
     "valueJogo": "gta",
     "valorPlataforma": "PC",
     "maxConquistas": 2
+  },
+  {
+    "id": "6a626c28-3011-46f5-8f50-d0cd434977b0",
+    "valueJogo": "the witcher 3 ",
+    "valorPlataforma": "PS5",
+    "maxConquistas": 5
+  },
+  {
+    "id": "7242047d-cc23-458c-b8af-0bd8905aad67",
+    "valueJogo": "gta",
+    "valorPlataforma": "PC",
+    "valueTitulo": "big",
+    "valueDescricao": "conheça big smoke",
+    "valueDificuldade": "facil",
+    "valueDesbloqueado": true,
+    "valueDataDesbloqueio": "2025-10-08T19:31:44.580Z",
+    "valuePontos": 89
+  },
+  {
+    "id": "38d5a07a-994f-4252-943b-d0e1f51f5c87",
+    "valueJogo": "the witcher 3 ",
+    "valorPlataforma": "PS5",
+    "valueTitulo": "mestre bruxo",
+    "valueDescricao": "domine escalibur ",
+    "valueDificuldade": "dificil",
+    "valueDesbloqueado": true,
+    "valueDataDesbloqueio": "2025-10-08T19:32:20.487Z",
+    "valuePontos": 15
   }
 ]
