@@ -1,36 +1,56 @@
-[
-  {
-    "id": "ffaa3372-f813-4473-a442-ee6bbb671fed",
-    "valueJogo": "gta",
-    "valorPlataforma": "PC",
-    "maxConquistas": 2
-  },
-  {
-    "id": "6a626c28-3011-46f5-8f50-d0cd434977b0",
-    "valueJogo": "the witcher 3 ",
-    "valorPlataforma": "PS5",
-    "maxConquistas": 5
-  },
-  {
-    "id": "7242047d-cc23-458c-b8af-0bd8905aad67",
-    "valueJogo": "gta",
-    "valorPlataforma": "PC",
-    "valueTitulo": "big",
-    "valueDescricao": "conheça big smoke",
-    "valueDificuldade": "facil",
-    "valueDesbloqueado": true,
-    "valueDataDesbloqueio": "2025-10-08T19:31:44.580Z",
-    "valuePontos": 89
-  },
-  {
-    "id": "38d5a07a-994f-4252-943b-d0e1f51f5c87",
-    "valueJogo": "the witcher 3 ",
-    "valorPlataforma": "PS5",
-    "valueTitulo": "mestre bruxo",
-    "valueDescricao": "domine escalibur ",
-    "valueDificuldade": "dificil",
-    "valueDesbloqueado": true,
-    "valueDataDesbloqueio": "2025-10-08T19:32:20.487Z",
-    "valuePontos": 15
-  }
-]
+{
+  "conquistas": [
+    {
+      "id": "a454c001-77a9-4c86-8102-455ee5c3fbba",
+      "valueJogo": "GTA ",
+      "valorPlataforma": "PC",
+      "maxConquistas": 2
+    },
+    {
+      "id": "f8469fcb-043c-4c9e-af71-d45a5b1c4c16",
+      "valueJogo": "GTA ",
+      "valorPlataforma": "PC",
+      "valueTitulo": "big",
+      "valueDescricao": "vá até grove street",
+      "valueDificuldade": "facil",
+      "valueDesbloqueado": true,
+      "valueDataDesbloqueio": "2025-10-08T19:57:57.631Z",
+      "valuePontos": 39
+    },
+    {
+      "id": "82089b4d-2ed5-4545-8434-1ee006f5b895",
+      "valueJogo": "CS",
+      "valorPlataforma": "PC",
+      "maxConquistas": 5
+    },
+    {
+      "id": "e3a3f512-5dcf-4ee6-a601-f30dd6a486c3",
+      "valueJogo": "CS",
+      "valorPlataforma": "PC",
+      "valueTitulo": "Defuse a bomba 20x",
+      "valueDescricao": "defuse",
+      "valueDificuldade": "dificil",
+      "valueDesbloqueado": true,
+      "valueDataDesbloqueio": "2025-10-08T19:58:42.556Z",
+      "valuePontos": 52
+    },
+    {
+      "id": "62808e92-5345-4892-a7a7-e8b1d5b45313",
+      "valueJogo": "The witcher",
+      "valorPlataforma": "PS5",
+      "maxConquistas": 1
+    },
+    {
+      "id": "42aa05ca-d30d-491b-84e7-c805e070539f",
+      "valueJogo": "The witcher",
+      "valorPlataforma": "PS5",
+      "valueTitulo": "mestre bruxo ",
+      "valueDescricao": "domine a arte da espada",
+      "valueDificuldade": "media",
+      "valueDesbloqueado": true,
+      "valueDataDesbloqueio": "2025-10-08T20:00:20.042Z",
+      "valuePontos": 45
+    }
+  ],
+  "pontuacaoMestre": 136
+}
